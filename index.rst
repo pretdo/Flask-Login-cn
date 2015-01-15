@@ -133,11 +133,7 @@ Flask-Login 为 Flask 提供了用户会话管理。它处理了日常的登入�
 .. Caution::
    该方法将会被弃用，使用下一节的 `~LoginManager.request_loader` 来代替。
 
-Sometimes you want to support Basic Auth login using the `Authorization`
-header, such as for api requests. To support login via header you will need
-to provide a `~LoginManager.header_loader` callback. This callback should behave
-the same as your `~LoginManager.user_loader` callback, except that it accepts
-a header value instead of a user id. For example::
+有些时候你要支持使用 `Authorization` 头的基本认证登录，比如 API 请求。为了支持通过头登录你需要提供一个 `~LoginManager.header_loader` 回调。这个回调和 `~LoginManager.user_loader` 回调作用一样，只是它接受一个 HTTP 头(Authorization)而不是用户 id。例如::
 
     @login_manager.header_loader
     def load_user_from_header(header_val):
@@ -147,22 +143,15 @@ a header value instead of a user id. For example::
         except TypeError:                                                     
             pass
         return User.query.filter_by(api_key=header_val).first()
-        
-By default the `Authorization` header's value is passed to your
-`~LoginManager.header_loader` callback. You can change the header used with
-the `AUTH_HEADER_NAME` configuration.
+
+默认情况下 `Authorization` 的值传给 `~LoginManager.header_loader` 回调。你可以使用 `AUTH_HEADER_NAME` 配置来修改使用的 HTTP 头(可以不使用 `Authorization`，使用 `Token`)。
 
 
 使用 Request Loader 定制登录
 =================================
-Sometimes you want to login users without using cookies, such as using header
-values or an api key passed as a query argument. In these cases, you should use
-the `~LoginManager.request_loader` callback. This callback should behave the
-same as your `~LoginManager.user_loader` callback, except that it accepts the
-Flask request instead of a user_id.
+有时你想要不使用 cookies 情况下登录用户，比如使用 HTTP 头或者一个作为查询参数的 api 密钥。这种情况下，你应该使用 `~LoginManager.request_loader` 回调。这个回调和 `~LoginManager.user_loader` 回调作用一样，但是 `~LoginManager.user_loader` 回调只接受 Flask 请求而不是一个 user_id。
 
-For example, to support login from both a url argument and from Basic Auth
-using the `Authorization` header::
+例如，为了同时支持一个 url 参数和使用 `Authorization` 头的基本用户认证的登录::
 
     @login_manager.request_loader
     def load_user_from_request(request):
@@ -192,66 +181,40 @@ using the `Authorization` header::
 
 匿名用户
 ===============
-By default, when a user is not actually logged in, `current_user` is set to
-an `AnonymousUserMixin` object. It has the following properties and methods:
+默认情况下，当一个用户没有真正地登录，`current_user` 被设置成一个 `AnonymousUserMixin` 对象。它由如下的属性和方法:
 
-- `is_active` and `is_authenticated` are `False`
-- `is_anonymous` is `True`
-- `get_id()` returns `None`
+- `is_active` 和 `is_authenticated` 的值为 `False`
+- `is_anonymous` 的值为 `True`
+- `get_id()` 返回 `None`
 
-If you have custom requirements for anonymous users (for example, they need
-to have a permissions field), you can provide a callable (either a class or
-factory function) that creates anonymous users to the `LoginManager` with::
+如果需要为匿名用户定制一些需求(比如，需要一个权限域)，你可以向 `LoginManager` 提供一个创建匿名用户的回调（类或工厂函数）::
 
     login_manager.anonymous_user = MyAnonymousUser
 
 
 记住我
 ===========
-"Remember Me" functionality can be tricky to implement. However, Flask-Login
-makes it nearly transparent - just pass ``remember=True`` to the `login_user`
-call. A cookie will be saved on the user's computer, and then Flask-Login
-will automatically restore the user ID from that cookie if it is not in the
-session. The cookie is tamper-proof, so if the user tampers with it (i.e.
-inserts someone else's user ID in place of their own), the cookie will merely
-be rejected, as if it was not there.
+"记住我"的功能很难实现。但是，Flask-Login 几乎透明地实现它 - 只要把 ``remember=True` 传递给 `login_user`。一个 cookie 将会存储在用户计算机中，如果用户会话中没有用户 ID 的话，Flask-Login 会自动地从 cookie 中恢复用户 ID。cookie 是防纂改的，因此如果用户纂改过它(比如，使用其它的一些东西来代替用户的 ID)，它就会被拒绝，就像不存在。
 
-That level of functionality is handled automatically. However, you can (and
-should, if your application handles any kind of sensitive data) provide
-additional infrastructure to increase the security of your remember cookies.
+该层功能是被自动实现的。但你能（且应该，如果你的应用处理任何敏感的数据）提供 额外基础工作来增强你记住的 cookie 的安全性。
 
 
-Alternative Tokens
+可选令牌
 ------------------
-Using the user ID as the value of the remember token is not necessarily
-secure. More secure is a hash of the username and password combined, or
-something similar. To add an alternative token, add a method to your user
-objects:
+使用用户 ID 作为记住的令牌值不一定是安全的。更安全的方法是使用用户名和密码联合的 hash 值，或类似的东西。要添加一个额外的令牌，向你的用户对象添加一个方法：
 
 `get_auth_token()`
-    Returns an authentication token (as `unicode`) for the user. The auth
-    token should uniquely identify the user, and preferably not be guessable
-    by public information about the user such as their UID and name - nor
-    should it expose such information.
+    返回用户的认证令牌（返回为 `unicode` ）。这个认证令牌应能唯一识别用户，且 不易通过用户的公开信息，如 UID 和名称来猜测出——同样也不应暴露这些信息。
 
-Correspondingly, you should set a `~LoginManager.token_loader` function on the
-`LoginManager`, which takes a token (as stored in the cookie) and returns the
-appropriate `User` object.
+相应地，你应该在 `LoginManager` 上设置一个 `~LoginManager.token_loader` 函数， 它接受令牌（存储在 cookie 中）作为参数并返回合适的 User 对象。
 
-The `make_secure_token` function is provided for creating auth tokens
-conveniently. It will concatenate all of its arguments, then HMAC it with
-the app's secret key to ensure maximum cryptographic security. (If you store
-the user's token in the database permanently, then you may wish to add random
-data to the token to further impede guessing.)
+`make_secure_token` 函数用于便利创建认证令牌。它会连接所有的参数，然后用应用的密钥来 HMAC 它确保最大的密码学安全。（如果你永久地在数据库中存储用户令牌，那么 你会希望向令牌中添加随机数据来阻碍猜测。）
 
-If your application uses passwords to authenticate users, including the
-password (or the salted password hash you should be using) in the auth
-token will ensure that if a user changes their password, their old
-authentication tokens will cease to be valid.
+如果你的应用使用密码来验证用户，在认证令牌中包含密码（或你应使用的加盐值的密码 hash ）能确保若用户更改密码，他们的旧认证令牌会失效。
 
 
-Fresh Logins
-------------
+新登录(Fresh Logins)
+-----------------------
 When a user logs in, their session is marked as "fresh," which indicates that
 they actually authenticated on that session. When their session is destroyed
 and they are logged back in with a "remember me" cookie, it is marked as
@@ -283,7 +246,7 @@ Or by providing your own callback to handle refreshing::
 To mark a session as fresh again, call the `confirm_login` function.
 
 
-Cookie Settings
+Cookie 设置
 ---------------
 The details of the cookie can be customized in the application settings.
 
@@ -303,7 +266,7 @@ The details of the cookie can be customized in the application settings.
 =========================== =================================================
 
 
-Session Protection
+会话保护
 ==================
 While the features above help secure your "Remember Me" token from cookie
 thieves, the session cookie is still vulnerable. Flask-Login includes session
@@ -353,7 +316,7 @@ value will be sent to ``flash`` instead.
 
 API 文档
 =================
-This documentation is automatically generated from Flask-Login's source code.
+这部分文档是从 Flask-Login 源码中自动生成的。
 
 
 配置登录
@@ -448,39 +411,30 @@ This documentation is automatically generated from Flask-Login's source code.
 
 信号
 -------
-See the `Flask documentation on signals`_ for information on how to use these
-signals in your code.
+如何在你的代码中使用这些信号请参阅 `Flask documentation on signals`_。
 
 .. data:: user_logged_in
 
-   Sent when a user is logged in. In addition to the app (which is the
-   sender), it is passed `user`, which is the user being logged in.
+   当一个用户登入的时候发出。除应用（信号的发送者）之外，它还传递正登入的用户 `user` 。
 
 .. data:: user_logged_out
 
-   Sent when a user is logged out. In addition to the app (which is the
-   sender), it is passed `user`, which is the user being logged out.
+   当一个用户登出的时候发出。除应用（信号的发送者）之外，它还传递正登出的用户 `user` 。
 
 .. data:: user_login_confirmed
 
-   Sent when a user's login is confirmed, marking it as fresh. (It is not
-   called for a normal login.)
-   It receives no additional arguments besides the app.
+   当用户的登入被证实，把它标记为活跃的。（它不用于常规登入的调用。） 它不接受应用以外的任何其它参数。
 
 .. data:: user_unauthorized
 
-   Sent when the `unauthorized` method is called on a `LoginManager`. It
-   receives no additional arguments besides the app.
+   当 `LoginManager` 上的 `unauthorized` 方法被调用时发出。它不接受应用以外的任何其它参数。
 
 .. data:: user_needs_refresh
 
-   Sent when the `needs_refresh` method is called on a `LoginManager`. It
-   receives no additional arguments besides the app.
+   当 `LoginManager` 上的 `needs_refresh` 方法被调用时发出。它不接受应用以外的任何其它参数。
 
 .. data:: session_protected
 
-   Sent whenever session protection takes effect, and a session is either
-   marked non-fresh or deleted. It receives no additional arguments besides
-   the app.
+   当会话保护起作用时，且会话被标记为非活跃或删除时发出。它不接受应用以外的任何其它参数。
 
 .. _Flask documentation on signals: http://flask.pocoo.org/docs/signals/
