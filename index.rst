@@ -213,21 +213,11 @@ Flask-Login 为 Flask 提供了用户会话管理。它处理了日常的登入�
 如果你的应用使用密码来验证用户，在认证令牌中包含密码（或你应使用的加盐值的密码 hash ）能确保若用户更改密码，他们的旧认证令牌会失效。
 
 
-新登录(Fresh Logins)
------------------------
-When a user logs in, their session is marked as "fresh," which indicates that
-they actually authenticated on that session. When their session is destroyed
-and they are logged back in with a "remember me" cookie, it is marked as
-"non-fresh." `login_required` does not differentiate between freshness, which
-is fine for most pages. However, sensitive actions like changing one's
-personal information should require a fresh login. (Actions like changing
-one's password should always require a password re-entry regardless.)
+”新鲜的“登录(Fresh Logins)
+---------------------------
+当用户登入，他们的会话被标记成“新鲜的”，就是说在这个会话只中用户实际上登录过。当会话销毁用户使用“记住我”的 cookie 重新登入，会话被标记成“非新鲜的”。`login_required` 并不在意它们之间的不同，这适用于大部分页面。然而，更改某人 的个人信息这样的敏感操作应需要一个“新鲜的”的登入。（像修改密码这样的操作总是需要 密码，无论是否重登入。）
 
-`fresh_login_required`, in addition to verifying that the user is logged
-in, will also ensure that their login is fresh. If not, it will send them to
-a page where they can re-enter their credentials. You can customize its
-behavior in the same ways as you can customize `login_required`, by setting
-`LoginManager.refresh_view`, `~LoginManager.needs_refresh_message`, and
+`fresh_login_required`，除了验证用户登录，也将确保他们的登录是“新鲜的”。如果不是“新鲜的”，它会把用户送到可以重输入验证条件的页面。你可以定制 `fresh_login_required` 就像定制 `login_required` 那样，通过设置 `LoginManager.refresh_view`，`~LoginManager.needs_refresh_message`，和 
 `~LoginManager.needs_refresh_message_category`::
 
     login_manager.refresh_view = "accounts.reauthenticate"
@@ -236,82 +226,57 @@ behavior in the same ways as you can customize `login_required`, by setting
     )
     login_manager.needs_refresh_message_category = "info"
 
-Or by providing your own callback to handle refreshing::
+或者提供自己的回调来处理“非新鲜的”刷新::
 
     @login_manager.needs_refresh_handler
     def refresh():
         # do stuff
         return a_response
 
-To mark a session as fresh again, call the `confirm_login` function.
+调用 `confirm_login` 函数可以重新标记会话为”新鲜“。
 
 
 Cookie 设置
 ---------------
-The details of the cookie can be customized in the application settings.
+cookie 的细节可以在应用设置中定义。
 
 =========================== =================================================
-`REMEMBER_COOKIE_NAME`      The name of the cookie to store the "remember me"
-                            information in. **Default:** ``remember_token``
-`REMEMBER_COOKIE_DURATION`  The amount of time before the cookie expires, as
-                            a `datetime.timedelta` object.
-                            **Default:** 365 days (1 non-leap Gregorian year)
-`REMEMBER_COOKIE_DOMAIN`    If the "Remember Me" cookie should cross domains,
-                            set the domain value here (i.e. ``.example.com``
-                            would allow the cookie to be used on all
-                            subdomains of ``example.com``).
-                            **Default:** `None`
-`REMEMBER_COOKIE_PATH`      Limits the "Remember Me" cookie to a certain path.
-                            **Default:** ``/``
+`REMEMBER_COOKIE_NAME`      存储“记住我”信息的 cookie 名。 
+                            **默认值**： remember_token
+`REMEMBER_COOKIE_DURATION`  cookie 过期时间，为一个 `datetime.timedelta` 对象。
+                            **默认值：** 365 天 (1 非闰阳历年)
+`REMEMBER_COOKIE_DOMAIN`    如果“记住我” cookie 应跨域，在此处设置域名值
+                           （即 .example.com 会允许 example 下所有子域 名）。 
+                            **默认值：** None
+`REMEMBER_COOKIE_PATH`      限制”记住我“ cookie 存储到某一路径下。
+                            **默认值：** ``/``
 =========================== =================================================
 
 
 会话保护
 ==================
-While the features above help secure your "Remember Me" token from cookie
-thieves, the session cookie is still vulnerable. Flask-Login includes session
-protection to help prevent your users' sessions from being stolen.
+当上述特性保护“记住我”令牌免遭 cookie 窃取时，会话 cookie 仍然是脆弱的。 Flask-Login 包含了会话保护来帮助阻止用户会话被盗用。
 
-You can configure session protection on the `LoginManager`, and in the app's
-configuration. If it is enabled, it can operate in either `basic` or `strong`
-mode. To set it on the `LoginManager`, set the
-`~LoginManager.session_protection` attribute to ``"basic"`` or ``"strong"``::
+你可以在 `LoginManager` 上和应用配置中配置会话保护。如果它被启用，它可以在 `basic` 或 `strong` 两种模式中运行。要在 `LoginManager` 上设置它，设置 `~LoginManager.session_protection` 属性为 ``"basic"`` 或 ``"strong"``::
 
     login_manager.session_protection = "strong"
 
-Or, to disable it::
+或者，禁用它::
 
     login_manager.session_protection = None
 
-By default, it is activated in ``"basic"`` mode. It can be disabled in the
-app's configuration by setting the `SESSION_PROTECTION` setting to `None`,
-``"basic"``, or ``"strong"``.
+默认，它被激活为 ``"basic"`` 模式。它可以在应用配置中设定 `SESSION_PROTECTION` 为 `None` 、 ``"basic"`` 或 ``"strong"`` 来禁用。
 
-When session protection is active, each request, it generates an identifier
-for the user's computer (basically, the MD5 hash of the IP address and user
-agent). If the session does not have an associated identifier, the one
-generated will be stored. If it has an identifier, and it matches the one
-generated, then the request is OK.
+当启用了会话保护，每个请求，它生成一个用户电脑的标识（基本上是 IP 地址和 User Agent 的 MD5 hash 值）。如果会话不包含相关的标识，则存储生成的。如果存在标识，则匹配生成的，之后请求可用。
 
-If the identifiers do not match in `basic` mode, or when the session is
-permanent, then the session will simply be marked as non-fresh, and anything
-requiring a fresh login will force the user to re-authenticate. (Of course,
-you must be already using fresh logins where appropriate for this to have an
-effect.)
+在 `basic` 模式下或会话是永久的，如果该标识未匹配，会话会简单地被标记为非活 跃的，且任何需要活跃登入的东西会强制用户重新验证。（当然，你必须已经使用了活跃登入机制才能奏效。）
 
-If the identifiers do not match in `strong` mode for a non-permanent session,
-then the entire session (as well as the remember token if it exists) is
-deleted.
+在 `strong` 模式下的非永久会话，如果该标识未匹配，整个会话（记住的令牌如果存在，则同样）被删除。
 
 
 本地化
 ============
-By default, the `LoginManager` uses ``flash`` to display messages when a user
-is required to log in. These messages are in English. If you require
-localization, set the `localize_callback` attribute of `LoginManager` to a
-function to be called with these messages before they're sent to ``flash``,
-e.g. ``gettext``. This function will be called with the message and its return
-value will be sent to ``flash`` instead.
+默认情况下，当用户需要登录，`LoginManager` 使用 ``flash`` 来显示信息。这些信息都是英文的。如果你需要本地化，设置 `LoginManager` 的 `localize_callback` 属性为一个函数，该函数在消息被发送到 ``flash`` 的时候被调用，比如，``gettext``。
 
 
 API 文档
