@@ -3,69 +3,52 @@ Flask-Login
 ===========
 .. currentmodule:: flask.ext.login
 
-Flask-Login provides user session management for Flask. It handles the common
-tasks of logging in, logging out, and remembering your users' sessions over
-extended periods of time.
+Flask-Login 为 Flask 提供了用户会话管理。它处理了日常的登入，登出并且长时间记住用户的会话。
 
-It will:
+它会:
 
-- Store the active user's ID in the session, and let you log them in and out
-  easily.
-- Let you restrict views to logged-in (or logged-out) users.
-- Handle the normally-tricky "remember me" functionality.
-- Help protect your users' sessions from being stolen by cookie thieves.
-- Possibly integrate with Flask-Principal or other authorization extensions
-  later on.
+- 在会话中存储当前活跃的用户 ID，让你能够自由地登入和登出。
+- 让你限制登入(或者登出)用户可以访问的视图。
+- 处理让人棘手的 “记住我” 功能。
+- 帮助你保护用户会话免遭 cookie 被盗的牵连。
+- 可以与以后可能使用的 Flask-Principal 或其它认证扩展集成。
 
-However, it does not:
+但是，它不会:
 
-- Impose a particular database or other storage method on you. You are
-  entirely in charge of how the user is loaded.
-- Restrict you to using usernames and passwords, OpenIDs, or any other method
-  of authenticating.
-- Handle permissions beyond "logged in or not."
-- Handle user registration or account recovery.
+- 限制你使用特定的数据库或其它存储方法。如何加载用户完全由你决定。
+- 限制你使用用户名和密码，OpenIDs，或者其它的认证方法。
+- 处理超越 “登入或者登出” 之外的权限。
+- 处理用户注册或者账号恢复。
 
 .. contents::
    :local:
    :backlinks: none
 
 
-Configuring your Application
-============================
-The most important part of an application that uses Flask-Login is the
-`LoginManager` class. You should create one for your application somewhere in
-your code, like this::
+配置你的应用
+===============
+对一个使用 Flask-Login 的应用最重要的一部分就是 `LoginManager` 类。你应该在你的代码的某处为应用创建一个，像这样::
 
     login_manager = LoginManager()
 
-The login manager contains the code that lets your application and Flask-Login
-work together, such as how to load a user from an ID, where to send users when
-they need to log in, and the like.
+登录管理(login manager)包含了让你的应用和 Flask-Login 协同工作的代码，比如怎样从一个 ID 加载用户，当用户需要登录的时候跳转到哪里等等。
 
-Once the actual application object has been created, you can configure it for
-login with::
+一旦实际的应用对象创建后，你能够这样配置它来实现登录::
 
     login_manager.init_app(app)
 
 
-How it Works
-============
-You will need to provide a `~LoginManager.user_loader` callback. This callback
-is used to reload the user object from the user ID stored in the session. It
-should take the `unicode` ID of a user, and return the corresponding user
-object. For example::
+它是如何工作
+=============
+你必须提供一个 `~LoginManager.user_loader` 回调。这个回调用于从会话中存储的用户 ID 重新加载用户对象。它应该接受一个用户的 `unicode` ID 作为参数，并且返回相应的用户对象。比如::
 
     @login_manager.user_loader
     def load_user(userid):
         return User.get(userid)
 
-It should return `None` (**not raise an exception**) if the ID is not valid.
-(In that case, the ID will manually be removed from the session and processing
-will continue.)
+如果 ID 无效的话，它应该返回 `None`(**而不是抛出异常***)。(在这种情况下，ID 会 被手动从会话中移除且处理会继续)
 
-Once a user has authenticated, you log them in with the `login_user`
-function. For example::
+一旦用户通过验证，你可以使用 `login_user` 函数让用户登录。例如::
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
@@ -77,22 +60,20 @@ function. For example::
             return redirect(request.args.get("next") or url_for("index"))
         return render_template("login.html", form=form)
 
-It's that simple. You can then access the logged-in user with the
-`current_user` proxy, which is available in every template::
+就这么简单。你可用使用 `current_user` 代理来访问登录的用户，在每一个模板中都可以使用 `current_user`::
 
     {% if current_user.is_authenticated() %}
       Hi {{ current_user.name }}!
     {% endif %}
 
-Views that require your users to be logged in can be
-decorated with the `login_required` decorator::
+需要用户登入 的视图可以用 `login_required` 装饰器来装饰::
 
     @app.route("/settings")
     @login_required
     def settings():
         pass
 
-When the user is ready to log out::
+当用户要登出时::
 
     @app.route("/logout")
     @login_required
@@ -100,65 +81,45 @@ When the user is ready to log out::
         logout_user()
         return redirect(somewhere)
 
-They will be logged out, and any cookies for their session will be cleaned up.
+他们会被登出，且他们会话产生的任何 cookie 都会被清理干净。
 
-
-Your User Class
+你的用户类
 ===============
-The class that you use to represent users needs to implement these properties
-and methods:
+你用来表示用户的类需要实现这些属性和方法:
 
 `is_authenticated`
-    Returns `True` if the user is authenticated, i.e. they have provided
-    valid credentials. (Only authenticated users will fulfill the criteria
-    of `login_required`.)
+    当用户通过验证时，也即提供有效证明时返回 `True` 。（只有通过验证的用户会满足 `login_required` 的条件。）
 
 `is_active`
-    Returns `True` if this is an active user - in addition to being
-    authenticated, they also have activated their account, not been suspended,
-    or any condition your application has for rejecting an account. Inactive
-    accounts may not log in (without being forced of course).
+    如果这是一个活动用户且通过验证，账户也已激活，未被停用，也不符合任何你 的应用拒绝一个账号的条件，返回 `True` 。不活动的账号可能不会登入（当然， 是在没被强制的情况下）。
 
 `is_anonymous`
-    Returns `True` if this is an anonymous user. (Actual users should return
-    `False` instead.)
+    如果是一个匿名用户，返回 `True` 。（真实用户应返回 `False` 。）
 
 `get_id()`
-    Returns a `unicode` that uniquely identifies this user, and can be used
-    to load the user from the `~LoginManager.user_loader` callback. Note
-    that this **must** be a `unicode` - if the ID is natively an `int` or some
-    other type, you will need to convert it to `unicode`.
+    返回一个能唯一识别用户的，并能用于从 `~LoginManager.user_loader` 回调中加载用户的 `unicode` 。注意着 **必须** 是一个 `unicode` —— 如果 ID 原本是 一个 `int` 或其它类型，你需要把它转换为 `unicode` 。
 
-To make implementing a user class easier, you can inherit from `UserMixin`,
-which provides default implementations for all of these methods. (It's not
-required, though.)
+要简便地实现用户类，你可以从 `UserMixin` 继承，它提供了对所有这些方法的默认 实现。（虽然这不是必须的。）
 
-
-Customizing the Login Process
+定制登入过程
 =============================
-By default, when a user attempts to access a `login_required` view without
-being logged in, Flask-Login will flash a message and redirect them to the
-log in view. (If the login view is not set, it will abort with a 401 error.)
+默认情况下，当未登录的用户尝试访问一个 `login_required` 装饰的视图，Flask-Login 会闪现一条消息并且重定向到登录视图。(如果未设置登录视图，它将会以 401 错误退出。)
 
-The name of the log in view can be set as `LoginManager.login_view`.
-For example::
+登录视图的名称可以设置成 `LoginManager.login_view`。例如::
 
     login_manager.login_view = "users.login"
 
-The default message flashed is ``Please log in to access this page.`` To
-customize the message, set `LoginManager.login_message`::
+默认的闪现消息是 ``Please log in to access this page.``。要自定义该信息，请设置 `LoginManager.login_message`::
 
-    login_manager.login_message = u"Bonvolu ensaluti por uzi tio paĝo."
+    login_manager.login_message = u"Bonvolu ensaluti por uzi tio pa臐o."
 
-To customize the message category, set `LoginManager.login_message_category`::
+要自定义消息分类的话，请设置 `LoginManager.login_message_category`::
 
     login_manager.login_message_category = "info"
 
-When the log in view is redirected to, it will have a ``next`` variable in the
-query string, which is the page that the user was trying to access.
+当重定向到登入视图，它的请求字符串中会有一个 ``next`` 变量，其值为用户之前访问的页面。
 
-If you would like to customize the process further, decorate a function with
-`LoginManager.unauthorized_handler`::
+如果你想要进一步自定义登入过程，请使用 `LoginManager.unauthorized_handler` 装饰函数::
 
     @login_manager.unauthorized_handler
     def unauthorized():
@@ -166,12 +127,11 @@ If you would like to customize the process further, decorate a function with
         return a_response
 
 
-Login using Authorization header
-================================
+使用授权头(Authorization header)登录
+======================================
 
 .. Caution::
-   This method will be deprecated; use the `~LoginManager.request_loader`
-   below instead.
+   该方法将会被弃用，使用下一节的 `~LoginManager.request_loader` 来代替。
 
 Sometimes you want to support Basic Auth login using the `Authorization`
 header, such as for api requests. To support login via header you will need
@@ -193,7 +153,7 @@ By default the `Authorization` header's value is passed to your
 the `AUTH_HEADER_NAME` configuration.
 
 
-Custom Login using Request Loader
+使用 Request Loader 定制登录
 =================================
 Sometimes you want to login users without using cookies, such as using header
 values or an api key passed as a query argument. In these cases, you should use
@@ -230,7 +190,7 @@ using the `Authorization` header::
         return None
         
 
-Anonymous Users
+匿名用户
 ===============
 By default, when a user is not actually logged in, `current_user` is set to
 an `AnonymousUserMixin` object. It has the following properties and methods:
@@ -246,7 +206,7 @@ factory function) that creates anonymous users to the `LoginManager` with::
     login_manager.anonymous_user = MyAnonymousUser
 
 
-Remember Me
+记住我
 ===========
 "Remember Me" functionality can be tricky to implement. However, Flask-Login
 makes it nearly transparent - just pass ``remember=True`` to the `login_user`
@@ -381,7 +341,7 @@ then the entire session (as well as the remember token if it exists) is
 deleted.
 
 
-Localization
+本地化
 ============
 By default, the `LoginManager` uses ``flash`` to display messages when a user
 is required to log in. These messages are in English. If you require
@@ -391,12 +351,12 @@ e.g. ``gettext``. This function will be called with the message and its return
 value will be sent to ``flash`` instead.
 
 
-API Documentation
+API 文档
 =================
 This documentation is automatically generated from Flask-Login's source code.
 
 
-Configuring Login
+配置登录
 -----------------
 .. autoclass:: LoginManager
    
@@ -448,7 +408,7 @@ Configuring Login
    .. automethod:: needs_refresh_handler
 
 
-Login Mechanisms
+登录机制
 ----------------
 .. data:: current_user
 
@@ -463,14 +423,14 @@ Login Mechanisms
 .. autofunction:: confirm_login
 
 
-Protecting Views
+保护视图
 ----------------
 .. autofunction:: login_required
 
 .. autofunction:: fresh_login_required
 
 
-User Object Helpers
+用户对象助手
 -------------------
 .. autoclass:: UserMixin
    :members:
@@ -479,14 +439,14 @@ User Object Helpers
    :members:
 
 
-Utilities
+工具
 ---------
 .. autofunction:: login_url
 
 .. autofunction:: make_secure_token
 
 
-Signals
+信号
 -------
 See the `Flask documentation on signals`_ for information on how to use these
 signals in your code.
